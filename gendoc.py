@@ -81,7 +81,6 @@ def make_vectors_dataframe(vocabulary,subfolders):
     for subfolder,documents in subfolders.items():
         for filename,document in documents:
             counter_words = Counter(document).most_common()
-            #print(counter_words)
             vector = np.zeros((len(vocabulary),), dtype=int)
             for word,count in counter_words:
                 word_index = 0
@@ -95,15 +94,33 @@ def make_vectors_dataframe(vocabulary,subfolders):
     
     return vectors_df
 
-def tfidif(vectors_df):
+def tfidf(vectors_df):
+    transformer = TfidfTransformer()
+    tfidf_vector = transformer.fit_transform(np.stack(vectors_df['vector']))
+    tfidf_vector = tfidf_vector.toarray()
+    tfidf_vector = np.split(tfidf_vector,len(vectors_df['vector']))
+    tfidf_vector = [np.squeeze(doc) for doc in tfidf_vector]
+    vectors_df['tfidf'] = tfidf_vector
     
+    return vectors_df
 
+def svd(vectors_df,dimensionality):
+    truncator = TruncatedSVD(dimensionality)
+    svd_vector = truncator.fit_transform(np.stack(vectors_df['vector']))
+    svd_vector = np.split(svd_vector,len(vectors_df['vector']))
+    svd_vector = [np.squeeze(doc) for doc in svd_vector]
+    vectors_df["svd"] = svd_vector
+    
+    return vectors_df
+      
 def write_outputfile(vectors_df, outputfile):
     np.set_printoptions(threshold=np.nan)
-    df.to_csv(outputfile, index=False)
+    vectors_df.to_csv(outputfile, index=False)
     
 def read_outputfile(file):
     outputfile = pd.read_csv(file)
+    
+    #,dtype={'vector':np.int32}
     
     return outputfile
     
@@ -125,23 +142,27 @@ if __name__ == '__main__':
 
     subfolders = tokenize_folder(args.foldername)
     vocabulary = build_vocabulary(subfolders)
-    vectors_df = make_vectors_dataframe(vocabulary,subfolders)
-    write_outputfile(vectors_df,args.outputfile)
-    read_outputfile(args.outputfile)
     
-    print("Loading data from directory {}.".format(args.foldername))
-
     if not args.basedims:
         print("Using full vocabulary.")
     else:   
-        top_terms = build_vocabulary(subfolders)[:args.basedims]
+        vocabulary = vocabulary[:args.basedims]
         print("Using only top {} terms by raw count.".format(args.basedims))
 
+    vectors_df = make_vectors_dataframe(vocabulary,subfolders)
+    
+    print("Loading data from directory {}.".format(args.foldername))
+ 
     if args.tfidf:
+        vectors_df = tfidf(vectors_df)
         print("Applying tf-idf to raw counts.")
 
     if args.svddims:
+        vectors_df = svd(vectors_df,args.svddims)
         print("Truncating matrix to {} dimensions via singular value decomposition.".format(args.svddims))
+    
+    write_outputfile(vectors_df,args.outputfile)
+    read_outputfile(args.outputfile)
 
     # THERE ARE SOME ERROR CONDITIONS YOU MAY HAVE TO HANDLE WITH CONTRADICTORY
     # PARAMETERS.
