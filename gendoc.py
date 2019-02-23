@@ -8,6 +8,8 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfTransformer
 from collections import Counter
 
+pd.set_option('display.max_colwidth', 20)
+
 # gendoc.py -- Don't forget to put a reasonable amount code comments
 # in so that we better understand what you're doing when we grade!
 
@@ -69,11 +71,10 @@ def build_vocabulary(subfolders):
                 all_words.append(word)
     
     vocabulary = Counter(all_words).most_common()
-    #print(vocabulary)
     
     return vocabulary
 
-def make_vectors(vocabulary,subfolders):
+def make_vectors_dataframe(vocabulary,subfolders):
     """Counts occurences of words in document. blablabla
     """
     vectors = []
@@ -88,40 +89,24 @@ def make_vectors(vocabulary,subfolders):
                     if word in wordcount:
                         vector[word_index] = count 
                     word_index += 1
-            #print(vector[:100])
             vectors.append((subfolder,filename,vector))
-    #print(vectors[:10])
+    vectors_df = pd.DataFrame(vectors)
+    vectors_df.columns = ["subfolder","filename","vector"]
     
-    return vectors
+    return vectors_df
 
-def write_outputfile(vectors, outputfile):
-    df.columns = ["subfolder","filename","vector"]
-    df = pd.DataFrame(vectors)
-    df.to_csv("outputfile")
+def tfidif(vectors_df):
+    
 
-
-    """
-    def tfidf(vocabulary, subfolders):
-    vectors = []
-    for subfolder,documents in subfolders.items():
-        for filename,document in documents:
-            counter_words = Counter(document).most_common()
-            #print(counter_words)
-            vector = np.zeros((len(vocabulary),), dtype=int)
-            for word,count in counter_words:
-                word_index = 0
-                for wordcount in vocabulary:
-                    if word in wordcount:
-                        vector[word_index] = count 
-                    word_index += 1
-            TfidfTransformer(norm=’l2’)
-            #print(vector[:100])
-            vectors.append((subfolder,filename,vector))
-    #print(vectors[:10])
- 
-    return vectors
-      """ 
-
+def write_outputfile(vectors_df, outputfile):
+    np.set_printoptions(threshold=np.nan)
+    df.to_csv(outputfile, index=False)
+    
+def read_outputfile(file):
+    outputfile = pd.read_csv(file)
+    
+    return outputfile
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate term-document matrix.")
     parser.add_argument("-T", "--tfidf", action="store_true", help="Apply tf-idf to the matrix.")
@@ -140,8 +125,9 @@ if __name__ == '__main__':
 
     subfolders = tokenize_folder(args.foldername)
     vocabulary = build_vocabulary(subfolders)
-    vectors = make_vectors(vocabulary,subfolders)
-    write_outputfile(vectors,args.outputfile)
+    vectors_df = make_vectors_dataframe(vocabulary,subfolders)
+    write_outputfile(vectors_df,args.outputfile)
+    read_outputfile(args.outputfile)
     
     print("Loading data from directory {}.".format(args.foldername))
 
