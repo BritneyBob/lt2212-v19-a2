@@ -19,12 +19,20 @@ def similarity_within_topic(vectorfile_df):
     grain = vectorfile_df[vectorfile_df["subfolder"]=="grain"]
     grain_vectors = [doc for doc in grain['vector']]
     cs_grain = cosine_similarity(grain_vectors)
+    cs_sum = 0
+    for similarity in np.nditer(cs_grain):
+        cs_sum += similarity
+    average_cs_grain = cs_sum / (cs_grain.shape[0] * cs_grain.shape[1])
     
     crude = vectorfile_df[vectorfile_df["subfolder"]=="crude"]
     crude_vectors = [doc for doc in crude['vector']]
     cs_crude = cosine_similarity(crude_vectors)
+    cs_sum = 0
+    for similarity in np.nditer(cs_crude):
+        cs_sum += similarity
+    average_cs_crude = cs_sum / (cs_crude.shape[0] * cs_crude.shape[1])
     
-    return cs_grain,cs_crude   
+    return average_cs_grain,average_cs_crude   
     
 def similarity_between_topics(vectorfile_df):
     grain = vectorfile_df[vectorfile_df["subfolder"]=="grain"]
@@ -36,7 +44,17 @@ def similarity_between_topics(vectorfile_df):
     cs_between_gc = cosine_similarity(grain_vectors,crude_vectors)
     cs_between_cg = cosine_similarity(crude_vectors,grain_vectors)
     
-    return cs_between_gc, cs_between_cg
+    cs_sum = 0
+    for similarity in np.nditer(cs_between_gc):
+        cs_sum += similarity
+    average_cs_gc = cs_sum / (cs_between_gc.shape[0] * cs_between_gc.shape[1])
+    
+    cs_sum = 0
+    for similarity in np.nditer(cs_between_cg):
+        cs_sum += similarity
+    average_cs_cg = cs_sum / (cs_between_cg.shape[0] * cs_between_cg.shape[1])
+    
+    return average_cs_gc, average_cs_cg
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Compute some similarity statistics.")
@@ -45,8 +63,13 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     
-    df_vectorfile = read_as_df(args.vectorfile)
+    vectorfile_df = read_as_df(args.vectorfile)
     cosine_similarity_within = similarity_within_topic(vectorfile_df)
     cosine_similarity_between = similarity_between_topics(vectorfile_df)
+    
+    print("The average cosine similarity between the documents in 'grain': ", cosine_similarity_within[0])
+    print("The average cosine similarity between the documents in 'crude': ", cosine_similarity_within[1])
+    print("The average cosine similarity between the documents in 'grain' and the documents in 'crude': ", cosine_similarity_between[0])
+    print("The average cosine similarity between the documents in 'crude' and the documents in 'grain': ", cosine_similarity_between[1])
 
     print("Reading matrix from {}.".format(args.vectorfile))
