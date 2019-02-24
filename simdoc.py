@@ -33,11 +33,11 @@ def similarity_between_topics(vectorfile_df):
     crude = vectorfile_df[vectorfile_df["subfolder"]=="crude"]
     crude_vectors = [doc for doc in crude['vector']]
     
-    cs_between = cosine_similarity(grain_vectors,crude_vectors)
+    cs_between_gc = cosine_similarity(grain_vectors,crude_vectors)
+    cs_between_cg = cosine_similarity(crude_vectors,grain_vectors)
     
-    return cs_between
+    return cs_between_gc, cs_between_cg
     
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Compute some similarity statistics.")
     parser.add_argument("vectorfile", type=str,
@@ -46,6 +46,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     df_vectorfile = read_as_df(args.vectorfile)
-    cosine_similarity_1 = similarity_within_topic(vectorfile_df)
+    cosine_similarity_within = similarity_within_topic(vectorfile_df)
+    cosine_similarity_between = similarity_between_topics(vectorfile_df)
 
     print("Reading matrix from {}.".format(args.vectorfile))
