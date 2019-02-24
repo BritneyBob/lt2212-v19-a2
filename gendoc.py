@@ -75,7 +75,10 @@ def build_vocabulary(subfolders):
     return vocabulary
 
 def make_vectors_dataframe(vocabulary,subfolders):
-    """Counts occurences of words in document. blablabla
+    """Counts occurences of words in each document. Makes a vector for each document and
+       adds the wordcounts in the indices corresponding to the word's index in vocabulary.
+       Makes a list of three-tuples containing the name of subfolder, the filename and the
+       vector. Returns a dataframe vectors_df made from the list of three-tuples.
     """
     vectors = []
     for subfolder,documents in subfolders.items():
@@ -94,7 +97,21 @@ def make_vectors_dataframe(vocabulary,subfolders):
     
     return vectors_df
 
+def remove_duplicates(vectors_df):
+    """Checks which vectors in vectors_df that are duplicates. Prints the name of subfolder
+       and filename of the duplicates. Removes duplicates. Returns vectors_df with 
+       duplicates removed.
+    """
+    vectors = vectors_df['vector'].apply(tuple)
+    duplicates = vectors.duplicated(keep=False)
+    print("Following documents have duplicate vectors and are removed: ", vectors_df[duplicates][['subfolder','filename']])
+    
+    return vectors_df[~duplicates]
+
 def tfidf(vectors_df):
+    """Applies tfidf to the raw counts vectors. Returns vectors_df with tfidf vectors 
+       instead of raw counts vectors.
+    """
     transformer = TfidfTransformer()
     tfidf_vector = transformer.fit_transform(np.stack(vectors_df['vector']))
     tfidf_vector = tfidf_vector.toarray()
@@ -105,6 +122,9 @@ def tfidf(vectors_df):
     return vectors_df
 
 def svd(vectors_df,dimensionality):
+    """Truncates matrix to dimensionality dimensions via singular value decomposition.
+       Returns vectors_df with svd vectors instead of raw counts vectors.
+    """
     truncator = TruncatedSVD(dimensionality)
     svd_vector = truncator.fit_transform(np.stack(vectors_df['vector']))
     svd_vector = np.split(svd_vector,len(vectors_df['vector']))
@@ -114,6 +134,8 @@ def svd(vectors_df,dimensionality):
     return vectors_df
       
 def write_outputfile(vectors_df, outputfile):
+    """Writes vectors_df to outputfile.
+    """
     np.set_printoptions(threshold=np.nan)
     vectors_df.to_csv(outputfile, index=False)
     
@@ -138,13 +160,15 @@ if __name__ == '__main__':
     
     if not args.basedims:
         print("Using full vocabulary.")
-    else:   
+    else: 
         vocabulary = vocabulary[:args.basedims]
+        vectors_df = make_vectors_dataframe(vocabulary,subfolders)
         print("Using only top {} terms by raw count.".format(args.basedims))
-
-    vectors_df = make_vectors_dataframe(vocabulary,subfolders)
     
     print("Loading data from directory {}.".format(args.foldername))
+    
+    vectors_df = make_vectors_dataframe(vocabulary,subfolders)
+    vectors_df = remove_duplicates(vectors_df)
  
     if args.tfidf:
         vectors_df = tfidf(vectors_df)
