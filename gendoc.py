@@ -100,7 +100,7 @@ def tfidf(vectors_df):
     tfidf_vector = tfidf_vector.toarray()
     tfidf_vector = np.split(tfidf_vector,len(vectors_df['vector']))
     tfidf_vector = [np.squeeze(doc) for doc in tfidf_vector]
-    vectors_df['tfidf'] = tfidf_vector
+    vectors_df['vector'] = tfidf_vector
     
     return vectors_df
 
@@ -109,20 +109,13 @@ def svd(vectors_df,dimensionality):
     svd_vector = truncator.fit_transform(np.stack(vectors_df['vector']))
     svd_vector = np.split(svd_vector,len(vectors_df['vector']))
     svd_vector = [np.squeeze(doc) for doc in svd_vector]
-    vectors_df["svd"] = svd_vector
+    vectors_df['vector'] = svd_vector
     
     return vectors_df
       
 def write_outputfile(vectors_df, outputfile):
     np.set_printoptions(threshold=np.nan)
     vectors_df.to_csv(outputfile, index=False)
-    
-def read_outputfile(file):
-    outputfile = pd.read_csv(file)
-    
-    #,dtype={'vector':np.int32}
-    
-    return outputfile
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate term-document matrix.")
@@ -162,7 +155,6 @@ if __name__ == '__main__':
         print("Truncating matrix to {} dimensions via singular value decomposition.".format(args.svddims))
     
     write_outputfile(vectors_df,args.outputfile)
-    read_outputfile(args.outputfile)
 
     # THERE ARE SOME ERROR CONDITIONS YOU MAY HAVE TO HANDLE WITH CONTRADICTORY
     # PARAMETERS.
