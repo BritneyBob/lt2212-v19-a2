@@ -29,7 +29,7 @@ My name: Britta Carlsson
 I chose to use the 3000 top terms by raw count. It had to be more than 1000 terms, to get the truncated SVD to work when applied to 1000 dimensions. I thought 3000 terms was significantly fewer than the 11 thousand something total terms in the documents, thereby hopefully avoiding words appearing only once (or a very few times).
 
 ### Result table
-                                              Average cosine similarity of documents
+      Average cosine similarity of documents
 | File  |in "grain"|in "crude"|in "grain" compared to "crude" and vice versa|
 |-------|:--------:|:--------:|:-------------------------------------------:|
 | 1.txt | 0.3281   | 0.3720   | 0.3089                                      |
