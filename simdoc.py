@@ -8,6 +8,10 @@ from sklearn.metrics.pairwise import cosine_similarity
 # in so that we better understand what you're doing when we grade!
 
 def read_as_df(filename):
+    """Reads filename as a dataframe. Removes brackets from all vectors. Converts vectors 
+       from strings to arrays. Returns the dataframe vectorfile_df. Returns a list with the
+       words in filename.
+    """
     vectorfile_df = pd.read_csv(filename)
     vectors = [doc[1:-1] for doc in vectorfile_df['vector']]
     vectors = [np.fromstring(doc,sep=' ') for doc in vectors]
@@ -16,6 +20,10 @@ def read_as_df(filename):
     return vectorfile_df
 
 def similarity_within_topic(vectorfile_df):
+    """Calculates, for each subfolder, the cosine similarity of every vector of subfolder
+       with every other vector of the same subfolder. Calculates the average of the cosine
+       similarities. Returns the average cosine similarity for both topics.
+    """
     grain = vectorfile_df[vectorfile_df["subfolder"]=="grain"]
     grain_vectors = [doc for doc in grain['vector']]
     cs_grain = cosine_similarity(grain_vectors)
@@ -35,6 +43,11 @@ def similarity_within_topic(vectorfile_df):
     return average_cs_grain,average_cs_crude   
     
 def similarity_between_topics(vectorfile_df):
+    """Calculates the cosine similarity of every vector of subfolder
+       with every vector of the other subfolder and vice versa. Calculates the average of
+       the cosine similarities. Returns the average cosine similarity for the two 
+       comparisons (although the two values are exactly the same).
+    """
     grain = vectorfile_df[vectorfile_df["subfolder"]=="grain"]
     grain_vectors = [doc for doc in grain['vector']]
     
