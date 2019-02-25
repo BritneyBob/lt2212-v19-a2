@@ -1,5 +1,4 @@
 import os, sys
-import glob
 import argparse
 import numpy as np
 import pandas as pd
@@ -8,14 +7,9 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfTransformer
 from collections import Counter
 
-pd.set_option('display.max_colwidth', 20)
-
-# gendoc.py -- Don't forget to put a reasonable amount code comments
-# in so that we better understand what you're doing when we grade!
-
 def tokenize_file(filename):
-    """Opens filename. Removes all punctuation and tokenizes by whitespace.
-       Returns a list with the words in filename.
+    """Opens filename. Removes all punctuation and tokenizes by whitespace. Returns a list
+       with the words in filename.
     """
     with open(filename,'r') as f:
         text = f.read()
@@ -45,8 +39,8 @@ def tokenize_subfolder(subfolder, foldername):
     return tokenized_documents
                
 def tokenize_folder(foldername):
-    """Tokenizes all files in foldername. Returns a dictionary with lists of 
-       tokenized files in the different subfolders.
+    """Tokenizes all files in foldername. Returns a dictionary with lists of tokenized
+       files in the different subfolders.
     """
     
     subfolders = {} 
@@ -58,10 +52,22 @@ def tokenize_folder(foldername):
     
     return subfolders
 
+def remove_duplicates(subfolders):
+    duplicates = []
+    subfolder1,subfolder2 = subfolders.keys()
+    for i,(filename1,document1) in enumerate(subfolders[subfolder1]):
+        for j,(filename2,document2) in enumerate(subfolders[subfolder2]):
+            if document1 == document2:
+                duplicates.append((filename1,filename2))
+                del subfolders[subfolder1][i]
+                del subfolders[subfolder2][j]             
+
+    return subfolders,duplicates,subfolder1,subfolder2
+
 def build_vocabulary(subfolders):
-    """Puts all words of all documents in subfolders into one list. Counts
-       the occurences of each word. Returns vocabulary, a list of two-tuples
-       with words and its counts, in descending order.
+    """Puts all words of all documents in subfolders into one list. Counts the occurences
+       of each word. Returns vocabulary, a list of two-tuples with words and their counts,
+       in descending order.
     """
     all_words = []
 
@@ -77,10 +83,11 @@ def build_vocabulary(subfolders):
 def make_vectors_dataframe(vocabulary,subfolders):
     """Counts occurences of words in each document. Makes a vector for each document and
        adds the wordcounts in the indices corresponding to the word's index in vocabulary.
-       Makes a list of three-tuples containing the name of subfolder, the filename and the
-       vector. Returns a dataframe vectors_df made from the list of three-tuples.
+       Makes a list of three-tuples, each containing the name of subfolder, the filename
+       and the raw counts vector. Returns a dataframe vectors_df made from the list of 
+       three-tuples.
     """
-    vectors = []
+    vectors_raw_counts = []
     for subfolder,documents in subfolders.items():
         for filename,document in documents:
             counter_words = Counter(document).most_common()
@@ -91,30 +98,21 @@ def make_vectors_dataframe(vocabulary,subfolders):
                     if word in wordcount:
                         vector[word_index] = count 
                     word_index += 1
-            vectors.append((subfolder,filename,vector))
-    vectors_df = pd.DataFrame(vectors)
+            vectors_raw_counts.append((subfolder,filename,vector))
+    vectors_df = pd.DataFrame(vectors_raw_counts)
     vectors_df.columns = ["subfolder","filename","vector"]
     
     return vectors_df
-
-def remove_duplicates(vectors_df):
-    """Checks which vectors in vectors_df that are duplicates. Prints the name of subfolder
-       and filename of the duplicates. Removes duplicates. Returns vectors_df with 
-       duplicates removed.
-    """
-    vectors = vectors_df['vector'].apply(tuple)
-    duplicates = vectors.duplicated(keep=False)
-    print("Following documents have duplicate vectors and are removed: ", vectors_df[duplicates][['subfolder','filename']])
-    
-    return vectors_df[~duplicates]
 
 def tfidf(vectors_df):
     """Applies tfidf to the raw counts vectors. Returns vectors_df with tfidf vectors 
        instead of raw counts vectors.
     """
     transformer = TfidfTransformer()
-    tfidf_vector = transformer.fit_transform(np.stack(vectors_df['vector']))
-    tfidf_vector = tfidf_vector.toarray()
+    # Turns vectors into an np.array, and then splits them to lists again before reassigning the panda column.
+    vector_block = np.stack(vectors_df['vector'])
+    tfidf_vector = transformer.fit_transform(vector_block) # This returns a sparse compressed matrix
+    tfidf_vector = tfidf_vector.toarray() 
     tfidf_vector = np.split(tfidf_vector,len(vectors_df['vector']))
     tfidf_vector = [np.squeeze(doc) for doc in tfidf_vector]
     vectors_df['vector'] = tfidf_vector
@@ -123,20 +121,22 @@ def tfidf(vectors_df):
 
 def svd(vectors_df,dimensionality):
     """Truncates matrix to dimensionality dimensions via singular value decomposition.
-       Returns vectors_df with svd vectors instead of raw counts vectors.
+       Returns vectors_df with truncated vectors instead of raw counts/tf idf vectors.
     """
     truncator = TruncatedSVD(dimensionality)
-    svd_vector = truncator.fit_transform(np.stack(vectors_df['vector']))
-    svd_vector = np.split(svd_vector,len(vectors_df['vector']))
-    svd_vector = [np.squeeze(doc) for doc in svd_vector]
-    vectors_df['vector'] = svd_vector
+    truncated_vector = truncator.fit_transform(np.stack(vectors_df['vector']))
+    truncated_vector = np.split(truncated_vector,len(vectors_df['vector']))
+    truncated_vector = [np.squeeze(doc) for doc in truncated_vector]
+    vectors_df['vector'] = truncated_vector
     
     return vectors_df
       
 def write_outputfile(vectors_df, outputfile):
     """Writes vectors_df to outputfile.
     """
-    np.set_printoptions(threshold=np.nan)
+    # Disables summary printing, to be able to do calculations on the whole matrix in 
+    # outputfile.
+    np.set_printoptions(threshold=np.nan) 
     vectors_df.to_csv(outputfile, index=False)
     
 if __name__ == '__main__':
@@ -156,8 +156,27 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     subfolders = tokenize_folder(args.foldername)
+    subfolders,duplicates,subfolder1,subfolder2 = remove_duplicates(subfolders)
+    print("Following documents are duplicates and has been removed: ")
+    for docs in duplicates:
+        print(subfolder1,docs[0],subfolder2,docs[1])
     vocabulary = build_vocabulary(subfolders)
+ 
+    if args.basedims:
+        if args.basedims >= len(vocabulary):
+            print("Error: The number of top dimensions must be smaller than the total raw counts dimensions ({}). {} >= {}.".format(len(vocabulary),args.basedims,len(vocabulary)))
+            sys.exit()
     
+    if args.basedims and args.svddims:
+        if args.svddims >= args.basedims:
+            print("Error: The number of dimensions to truncate to must be smaller than the raw counts dimensions ({}). {} >= {}.".format(args.basedims,args.svddims,args.basedims))
+            sys.exit()
+    
+    if args.svddims:
+        if args.svddims >= len(vocabulary):
+            print("Error: The number of dimensions to truncate to must be smaller than the raw counts dimensions ({}). {} >= {}.".format(len(vocabulary),args.svddims,len(vocabulary)))
+            sys.exit()
+              
     if not args.basedims:
         print("Using full vocabulary.")
     else: 
@@ -168,22 +187,20 @@ if __name__ == '__main__':
     print("Loading data from directory {}.".format(args.foldername))
     
     vectors_df = make_vectors_dataframe(vocabulary,subfolders)
-    vectors_df = remove_duplicates(vectors_df)
  
     if args.tfidf:
         vectors_df = tfidf(vectors_df)
         print("Applying tf-idf to raw counts.")
-
-    if args.svddims:
+        # If both tf-idf and TruncatedSVD is applied, the SVD is applied to the matrix 
+        # containing tf-idf (which then gets overwritten) instead of the matrix containing
+        # raw counts. 
+        if args.svddims:                
+            vectors_df = svd(vectors_df,args.svddims)
+            print("Truncating matrix to {} dimensions via singular value decomposition.".format(args.svddims))
+    elif args.svddims:
         vectors_df = svd(vectors_df,args.svddims)
         print("Truncating matrix to {} dimensions via singular value decomposition.".format(args.svddims))
     
     write_outputfile(vectors_df,args.outputfile)
 
-    # THERE ARE SOME ERROR CONDITIONS YOU MAY HAVE TO HANDLE WITH CONTRADICTORY
-    # PARAMETERS.
-
     print("Writing matrix to {}.".format(args.outputfile))
-
-
-
